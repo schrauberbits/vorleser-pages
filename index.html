@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vorleser auf Pages · Testlabor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600&family=Source+Serif+4:wght@600&display=swap" rel="stylesheet">
+<style>
+/* VOICE ruhig, sachlich wie ein Messprotokoll · IDEA Sendestudio mit Bühne und Prüfprotokoll
+   PICTURE 16:9-Bühne oben, darunter die Prüfliste · COLOUR Schiefer #1f2a33, Kreide #ece7dd, Signal #c0504d, Grün #5f9e6e
+   TYPE Source Serif 4 für Titel, Source Sans 3 für Text · LAYOUT eine Spalte, Bühne zuerst, Tests als nummerierte Karten */
+:root{--bg:#1f2a33;--panel:#273541;--ink:#ece7dd;--mut:#a9b3ba;--rot:#c0504d;--gruen:#5f9e6e;--gelb:#d8b25a;--linie:#3a4a57}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Source Sans 3",system-ui,sans-serif}
+header,main{max-width:1100px;margin:0 auto;padding:16px max(4vw,14px)}
+h1{font:600 clamp(26px,4vw,38px)/1.1 "Source Serif 4",serif;margin:8px 0 4px}
+h2{font:600 19px/1.2 "Source Serif 4",serif;margin:0 0 6px}
+.mut{color:var(--mut);font-size:14px}
+.status{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.pill{border:1px solid var(--linie);border-radius:999px;padding:3px 12px;font-size:14px}
+.pill.ok{border-color:var(--gruen);color:#bfe3c8}.pill.warn{border-color:var(--gelb);color:#f1dda8}.pill.err{border-color:var(--rot);color:#f0b3b1}
+.buehne{position:relative;aspect-ratio:16/9;background:#141c22;border-radius:14px;overflow:hidden;border:1px solid var(--linie)}
+.buehne img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .6s}
+.buehne .leer{position:absolute;inset:0;display:grid;place-items:center;color:var(--mut);padding:20px;text-align:center}
+.buehne .ut{position:absolute;left:4%;right:4%;bottom:5%;background:rgba(10,14,18,.72);padding:8px 14px;border-radius:8px;font-size:clamp(15px,2vw,20px)}
+.buehne .marke{position:absolute;top:10px;left:12px;background:rgba(10,14,18,.7);padding:2px 10px;border-radius:6px;font-size:13px}
+.karte{background:var(--panel);border-radius:12px;padding:16px;margin:14px 0;border:1px solid var(--linie)}
+.reihe{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+button,select,input{font:inherit;font-size:16px;border-radius:8px;border:1px solid var(--linie);background:#1a242c;color:var(--ink);padding:9px 14px;min-height:44px}
+button{cursor:pointer;background:#33475a}button:hover{background:#3d566c}button:disabled{opacity:.45;cursor:default}
+input{flex:1 1 220px}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--linie);vertical-align:top}
+td.z{text-align:right;white-space:nowrap}
+.ok{color:#9fd3ac}.err{color:#f0a29f}.warn{color:#f1dda8}
+.vorschau{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.vorschau img{height:84px;border-radius:6px;border:1px solid var(--linie)}
+ol.saetze{margin:6px 0 0 18px;padding:0}ol.saetze li{margin:4px 0}ol.saetze small{color:var(--mut);display:block}
+@media(max-width:600px){table{font-size:13px}}
+@media(prefers-reduced-motion:reduce){.buehne img{transition:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Vorleser auf Pages · Testlabor</h1>
+  <div class="mut">Diese Seite läuft auf GitHub Pages. Sprachmodell- und Connector-Aufrufe macht die interne App „Pages-Brücke“ in Claude, die diese Seite als Fenster öffnet.</div>
+  <div class="status">
+    <span class="pill" id="stVerb">Verbindung: wartet</span>
+    <span class="pill" id="stKey">Passwort: fehlt</span>
+    <span class="pill" id="stDienste">Dienste: –</span>
+  </div>
+</header>
+<main>
+  <div class="buehne" id="buehne"><div class="leer" id="buehneLeer">Hier erscheinen die Szenen des Laufs.</div></div>
+
+  <section class="karte">
+    <h2>1 · Verbindung zur internen App</h2>
+    <div class="mut" id="verbText">Prüfe, ob diese Seite von der Pages-Brücke geöffnet wurde …</div>
+    <table><tbody>
+      <tr><td>Rundlaufzeit (Lebenszeichen)</td><td class="z" id="rtt">–</td></tr>
+      <tr><td>Lebenszeichen gesendet / beantwortet</td><td class="z" id="pings">0 / 0</td></tr>
+    </tbody></table>
+  </section>
+
+  <section class="karte">
+    <h2>2 · Verschlüsselung</h2>
+    <div class="mut">Dasselbe Verfahren wie im Vorleser: AES-GCM 256, Schlüssel aus dem Passwort per PBKDF2 (310 000 Durchläufe), Inhalt gezippt. Das Passwort verlässt diesen Browser nie.</div>
+    <div class="reihe"><input type="password" id="pass" placeholder="Passwort wie in der Pages-Brücke" autocomplete="current-password"><button id="passOk">Prüfen</button></div>
+    <div class="reihe"><button id="probe">Probe-Datei aus dem Repository entschlüsseln</button><span class="mut" id="probeText"></span></div>
+  </section>
+
+  <section class="karte">
+    <h2>3 · Sprachmodell über die App</h2>
+    <div class="reihe"><input id="thema" value="Wie Kakteen in der Wüste Wasser speichern"><button id="teil" disabled>Teil schreiben lassen</button><button id="beispiel">Beispielteil ohne App</button></div>
+    <div class="mut" id="teilText">Die App schreibt fünf Sätze wie ein Teil im Vorleser, je Satz mit einer Bildidee.</div>
+    <ol class="saetze" id="saetze"></ol>
+  </section>
+
+  <section class="karte">
+    <h2>4 · Lauf mit fünf Szenen</h2>
+    <div class="mut">Alle fünf Bilder werden gleichzeitig bestellt, höchstens drei auf einmal wie im Vorleser. Gemessen wird, ob jedes Bild vor dem Start seiner Szene da ist; danach spielt die Bühne die Szenen im Sprechtempo ab. Sprechdauer: Wörter ÷ 2,6 je Sekunde (etwa Supertonic bei Tempo 1).</div>
+    <div class="reihe">
+      <select id="dienst"><option value="pollinations">Pollinations (direkt auf Pages, ohne Schlüssel)</option><option value="canva">Canva (über die App)</option><option value="hf">Hugging Face (über die App)</option></select>
+      <select id="vorlauf"><option value="0" selected>ohne Vorlauf (erster Teil, strengster Fall)</option><option value="115">1 Teil Vorlauf (≈ 300 Wörter, 115 s)</option><option value="230">2 Teile Vorlauf (wie Vorleser, 230 s)</option></select>
+      <button id="lauf" disabled>Lauf starten</button>
+    </div>
+    <table><thead><tr><th>Szene</th><th>Dienst</th><th class="z">bestellt</th><th class="z">da nach</th><th class="z">gebraucht ab</th><th class="z">Größe</th><th>Ergebnis</th></tr></thead><tbody id="laufTab"></tbody></table>
+    <div class="vorschau" id="vorschau"></div>
+  </section>
+
+  <section class="karte">
+    <h2>Protokoll</h2>
+    <table><tbody id="log"></tbody></table>
+  </section>
+</main>
+<script>
+{
+const $ = id => document.getElementById(id);
+const APP = 'vlp', V = 1, ITER = 310000;
+const S = { appOrigin: null, verbunden: false, letzterPong: 0, pings: 0, pongs: 0, key: null, salz: null, pruef: null, dienste: {}, offen: new Map(), teil: null };
+const log = (text, art) => { const tr = document.createElement('tr'); const t = document.createElement('td'); t.className = 'z'; t.textContent = new Date().toLocaleTimeString('de-DE'); const m = document.createElement('td'); m.textContent = text; if (art) m.className = art; tr.append(t, m); $('log').prepend(tr); };
+const pill = (id, text, art) => { const e = $(id); e.textContent = text; e.className = 'pill ' + (art || ''); };
+
+/* Verschlüsselung wie im Vorleser */
+const b64 = u8 => { let t = ''; for (let i = 0; i < u8.length; i += 0x8000) t += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(t); };
+const unb64 = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
+async function ableiten(pass, salz, iter) { const basis = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(pass).normalize('NFC')), 'PBKDF2', false, ['deriveKey']); return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: unb64(salz), iterations: iter || ITER, hash: 'SHA-256' }, basis, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']); }
+async function zu(key, obj) { let b = new TextEncoder().encode(JSON.stringify(obj)), z = 0; if (typeof CompressionStream === 'function') { b = new Uint8Array(await new Response(new Blob([b]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()); z = 1; } const iv = crypto.getRandomValues(new Uint8Array(12)); const d = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, b)); return { v: 1, z, iv: b64(iv), d: b64(d) }; }
+async function auf(key, x) { let b = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(x.iv) }, key, unb64(x.d))); if (x.z) b = new Uint8Array(await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()); return JSON.parse(new TextDecoder().decode(b)); }
+
+/* Verbindung: Hallo, bis die App antwortet; danach Lebenszeichen alle 5 s */
+const senden = (msg, ziel) => { if (!window.opener) return false; try { window.opener.postMessage(Object.assign({ app: APP, v: V }, msg), ziel || S.appOrigin || '*'); return true; } catch (e) { log('Senden gescheitert: ' + (e.message || e), 'err'); return false; } };
+if (!window.opener) {
+  $('verbText').textContent = 'Diese Seite wurde nicht von der Pages-Brücke geöffnet. Öffne sie aus der App „Pages-Brücke“ in Claude. Pollinations und die Probe-Datei lassen sich trotzdem testen.';
+  pill('stVerb', 'Verbindung: keine App', 'err');
+} else {
+  const hallo = setInterval(() => { if (S.appOrigin) return clearInterval(hallo); senden({ typ: 'hallo' }, '*'); }, 1000);
+  senden({ typ: 'hallo' }, '*');
+  setInterval(() => { if (!S.appOrigin) return; S.pings++; senden({ typ: 'ping', t: performance.now() }); $('pings').textContent = S.pings + ' / ' + S.pongs; const alt = performance.now() - S.letzterPong; const ok = alt < 12000; if (ok !== S.verbunden) { S.verbunden = ok; pill('stVerb', ok ? 'Verbindung: steht' : 'Verbindung: abgerissen', ok ? 'ok' : 'err'); log(ok ? 'Verbindung steht wieder' : 'Kein Lebenszeichen seit 12 s', ok ? 'ok' : 'err'); } }, 5000);
+}
+window.addEventListener('message', async e => {
+  if (!window.opener || e.source !== window.opener) return;
+  if (!/^https:\/\/[a-z0-9-]+\.(frame\.)?claudeusercontent\.com$/.test(e.origin)) return;
+  const m = e.data; if (!m || m.app !== APP) return;
+  if (m.v !== V) { log('Andere Fassung des Nachrichtenformats (' + m.v + ')', 'err'); return; }
+  if (m.typ === 'willkommen') {
+    const neu = !S.appOrigin; S.appOrigin = e.origin; S.salz = m.salz || null; S.pruef = m.pruef || null; S.dienste = m.dienste || {}; S.letzterPong = performance.now(); S.verbunden = true;
+    pill('stVerb', 'Verbindung: steht', 'ok'); pill('stDienste', 'Dienste: ' + Object.entries(S.dienste).filter(([, v]) => v).map(([k]) => k).join(', '), 'ok');
+    $('verbText').textContent = 'Verbunden mit der Pages-Brücke (' + e.origin.split('.')[0].replace('https://', '').slice(0, 8) + '…).';
+    if (neu) log('Willkommen von der App erhalten', 'ok');
+    bereit();
+  } else if (m.typ === 'pong') { S.pongs++; S.letzterPong = performance.now(); $('rtt').textContent = Math.round(performance.now() - m.t) + ' ms'; $('pings').textContent = S.pings + ' / ' + S.pongs; }
+  else if (m.typ === 'erhalten') { const o = S.offen.get(m.id); if (o) { o.erhalten = true; clearInterval(o.wdh); } }
+  else if (m.typ === 'ergebnis' || m.typ === 'fehler') {
+    const o = S.offen.get(m.id); if (!o) return; S.offen.delete(m.id); clearInterval(o.wdh); clearTimeout(o.frist);
+    if (m.typ === 'fehler') return o.nein(new Error(m.text || m.code || 'Fehler in der App'));
+    try { o.ja(await auf(S.key, m.k)); } catch (x) { o.nein(new Error('Ergebnis ließ sich nicht entschlüsseln')); }
+  }
+});
+
+/* Auftrag an die App: verschlüsselt, wiederholt bis bestätigt, Frist 3 Minuten */
+async function auftrag(inhalt) {
+  if (!S.appOrigin) throw new Error('Keine Verbindung zur App');
+  if (!S.key) throw new Error('Passwort fehlt');
+  const id = crypto.randomUUID(), k = await zu(S.key, inhalt);
+  return new Promise((ja, nein) => {
+    const o = { ja, nein, versuche: 1, erhalten: false };
+    const los = () => senden({ typ: 'auftrag', id, k });
+    o.wdh = setInterval(() => { if (o.erhalten) return clearInterval(o.wdh); if (o.versuche >= 6) { clearInterval(o.wdh); S.offen.delete(id); return nein(new Error('App bestätigt den Auftrag nicht')); } o.versuche++; los(); }, 2000);
+    o.frist = setTimeout(() => { if (S.offen.has(id)) { S.offen.delete(id); clearInterval(o.wdh); nein(new Error('Frist von 3 Minuten überschritten')); } }, 180000);
+    S.offen.set(id, o); los();
+  });
+}
+
+/* Passwort prüfen */
+$('passOk').onclick = async () => {
+  const p = $('pass').value; if (!p) return;
+  if (!S.salz) { pill('stKey', 'Passwort: erst verbinden', 'warn'); log('Für die Nachrichten braucht es das Salz der App; Probe-Datei geht auch ohne Verbindung.', 'warn'); return; }
+  try { const key = await ableiten(p, S.salz); const x = await auf(key, S.pruef); if (x !== 'vlp-ok') throw 0; S.key = key; pill('stKey', 'Passwort: passt', 'ok'); log('Passwort passt zum Schlüssel der App', 'ok'); bereit(); }
+  catch (e) { S.key = null; pill('stKey', 'Passwort: falsch', 'err'); log('Passwort passt nicht', 'err'); bereit(); }
+};
+$('probe').onclick = async () => {
+  const p = $('pass').value; if (!p) { $('probeText').textContent = 'Erst Passwort eingeben.'; return; }
+  try {
+    const r = await fetch('daten/probe.json', { cache: 'no-store' }); if (!r.ok) throw new Error(r.status === 404 ? 'Im Repository liegt noch keine Probe-Datei' : 'HTTP ' + r.status);
+    const h = await r.json(); const t0 = performance.now(); const key = await ableiten(p, h.salz, h.iter); const x = await auf(key, h);
+    $('probeText').textContent = '✓ Entschlüsselt in ' + Math.round(performance.now() - t0) + ' ms: „' + String(x.text || '').slice(0, 120) + '“'; log('Probe-Datei entschlüsselt', 'ok');
+  } catch (e) { $('probeText').textContent = '✗ ' + (e.message || 'Entschlüsseln gescheitert (falsches Passwort?)'); log('Probe-Datei: ' + (e.message || 'gescheitert'), 'err'); }
+};
+function bereit() { const ok = !!(S.appOrigin && S.key); $('teil').disabled = !ok; $('lauf').disabled = !S.teil; [...$('dienst').options].forEach(o => { if (o.value !== 'pollinations') o.disabled = !(ok && S.dienste[o.value]); }); }
+
+/* Teil schreiben lassen */
+$('teil').onclick = async () => {
+  $('teil').disabled = true; $('teilText').textContent = 'Die App schreibt …'; const t0 = performance.now();
+  try {
+    const r = await auftrag({ art: 'llm', thema: $('thema').value.trim() || 'Wüstenpflanzen' });
+    S.teil = r; const ol = $('saetze'); ol.textContent = '';
+    (r.saetze || []).forEach(s => { const li = document.createElement('li'); li.textContent = s.t; const sm = document.createElement('small'); sm.textContent = 'Bild: ' + s.bild; li.append(sm); ol.append(li); });
+    $('teilText').textContent = '✓ ' + (r.saetze || []).length + ' Sätze in ' + ((performance.now() - t0) / 1000).toFixed(1) + ' s (Modellstufe ' + (r.stufe || 'complex') + ').'; log('Teil erhalten', 'ok');
+  } catch (e) { $('teilText').textContent = '✗ ' + e.message; log('Teil: ' + e.message, 'err'); }
+  bereit();
+};
+
+$('beispiel').onclick = () => {
+  S.teil = { stufe: 'fest', saetze: [
+    { t: 'Ein Saguaro-Kaktus kann nach einem einzigen Regen bis zu tausend Liter Wasser aufnehmen.', bild: 'giant saguaro cactus in the Sonoran desert after rain, dramatic sky, documentary photo' },
+    { t: 'Seine Rippen falten sich dabei auseinander wie eine Ziehharmonika.', bild: 'close-up of cactus ribs expanding like an accordion, macro photography' },
+    { t: 'Unter der Oberfläche speichert schwammiges Gewebe das Wasser monatelang.', bild: 'cross-section of cactus stem showing spongy water storing tissue, scientific illustration' },
+    { t: 'Eine dicke Wachsschicht verhindert, dass es in der Hitze verdunstet.', bild: 'waxy cactus skin glistening under harsh desert sun, macro' },
+    { t: 'Erst nachts öffnen sich die Spaltöffnungen, wenn die Luft kühler ist.', bild: 'cactus under a starry night sky in the desert, cool blue light' } ] };
+  const ol = $('saetze'); ol.textContent = ''; S.teil.saetze.forEach(s => { const li = document.createElement('li'); li.textContent = s.t; const sm = document.createElement('small'); sm.textContent = 'Bild: ' + s.bild; li.append(sm); ol.append(li); });
+  $('teilText').textContent = 'Fester Beispielteil geladen (ohne Sprachmodell).'; bereit();
+};
+
+/* Bilder holen */
+function pollinations(prompt, seed) {
+  return new Promise((ja, nein) => {
+    const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt) + '?width=1280&height=720&nologo=true&seed=' + seed;
+    const img = new Image(); img.onload = () => ja({ src: url, w: img.naturalWidth, h: img.naturalHeight }); img.onerror = () => nein(new Error('Bild ließ sich nicht laden')); img.src = url;
+  });
+}
+async function ueberApp(dienst, prompt) { const r = await auftrag({ art: 'bild', dienst, prompt }); const src = 'data:' + (r.mime || 'image/png') + ';base64,' + r.data; const dim = await new Promise(ja => { const i = new Image(); i.onload = () => ja([i.naturalWidth, i.naturalHeight]); i.onerror = () => ja([0, 0]); i.src = src; }); return { src, w: dim[0], h: dim[1] }; }
+const holen = (dienst, prompt, i) => dienst === 'pollinations' ? pollinations(prompt, 1000 + i) : ueberApp(dienst, prompt);
+
+/* Lauf mit fünf Szenen: höchstens drei Bestellungen gleichzeitig */
+$('lauf').onclick = async () => {
+  const saetze = (S.teil && S.teil.saetze) || []; if (!saetze.length) return;
+  const dienst = $('dienst').value, vorlauf = +$('vorlauf').value, tab = $('laufTab'), vs = $('vorschau'); tab.textContent = ''; vs.textContent = ''; $('lauf').disabled = true;
+  const dauer = saetze.map(s => s.t.split(/\s+/).length / 2.6);
+  const start = []; let acc = 0; dauer.forEach(d => { start.push(vorlauf + acc); acc += d; });
+  const zeilen = saetze.map((s, i) => { const tr = document.createElement('tr'); tr.innerHTML = '<td></td><td></td><td class="z">–</td><td class="z">…</td><td class="z"></td><td class="z"></td><td></td>'; tr.cells[0].textContent = i + 1; tr.cells[1].textContent = dienst; tr.cells[4].textContent = start[i].toFixed(1) + ' s'; tab.append(tr); return tr; });
+  const t0 = performance.now(), bilder = []; let frei = 3; const schlange = [];
+  const sem = fn => new Promise((ja, nein) => { const los = () => { frei--; fn().then(ja, nein).finally(() => { frei++; const w = schlange.shift(); if (w) w(); }); }; if (frei > 0) los(); else schlange.push(los); });
+  log('Lauf gestartet: ' + dienst + ', Vorlauf ' + vorlauf + ' s');
+  const fertig = saetze.map((s, i) => sem(async () => {
+    zeilen[i].cells[2].textContent = ((performance.now() - t0) / 1000).toFixed(1) + ' s';
+    try { const b = await holen(dienst, s.bild, i); const da = (performance.now() - t0) / 1000; bilder[i] = b;
+      zeilen[i].cells[3].textContent = da.toFixed(1) + ' s'; zeilen[i].cells[5].textContent = b.w + '×' + b.h; const ok = da <= start[i];
+      zeilen[i].cells[6].textContent = ok ? '✓ rechtzeitig' : '✗ ' + (da - start[i]).toFixed(1) + ' s zu spät'; zeilen[i].cells[6].className = ok ? 'ok' : 'err';
+      const img = document.createElement('img'); img.src = b.src; img.alt = 'Szene ' + (i + 1); vs.append(img);
+    } catch (e) { zeilen[i].cells[3].textContent = '–'; zeilen[i].cells[6].textContent = '✗ ' + e.message; zeilen[i].cells[6].className = 'err'; }
+  }));
+  await Promise.allSettled(fertig); log('Lauf beendet, Szenen werden abgespielt', 'ok'); bereit();
+  abspielen(saetze, dauer, bilder);
+};
+function abspielen(saetze, dauer, bilder) {
+  const b = $('buehne'); b.textContent = ''; const marke = document.createElement('div'); marke.className = 'marke'; const ut = document.createElement('div'); ut.className = 'ut'; const leer = document.createElement('div'); leer.className = 'leer'; b.append(leer, marke, ut);
+  let i = 0;
+  const szene = () => { if (i >= saetze.length) { ut.textContent = 'Ende des Teils'; return; } const k = i; marke.textContent = 'Szene ' + (k + 1); ut.textContent = saetze[k].t;
+    const zeige = () => { const old = b.querySelector('img'); if (bilder[k]) { const img = document.createElement('img'); img.src = bilder[k].src; img.alt = ''; b.insertBefore(img, marke); if (old) old.remove(); leer.textContent = ''; } else { if (old) old.remove(); leer.textContent = 'Bild für Szene ' + (k + 1) + ' fehlt noch'; } };
+    zeige(); const warte = setInterval(() => { if (bilder[k] && !b.querySelector('img')) zeige(); }, 500);
+    setTimeout(() => { clearInterval(warte); i++; szene(); }, dauer[k] * 1000); };
+  szene();
+}
+}
+</script>
+</body>
+</html>
