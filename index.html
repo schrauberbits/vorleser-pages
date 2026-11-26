@@ -80,7 +80,7 @@ ol.saetze{margin:6px 0 0 18px;padding:0}ol.saetze li{margin:4px 0}ol.saetze smal
     <h2>4 · Lauf mit fünf Szenen</h2>
     <div class="mut">Alle fünf Bilder werden gleichzeitig bestellt, höchstens drei auf einmal wie im Vorleser. Gemessen wird, ob jedes Bild vor dem Start seiner Szene da ist; danach spielt die Bühne die Szenen im Sprechtempo ab. Sprechdauer: Wörter ÷ 2,6 je Sekunde (etwa Supertonic bei Tempo 1).</div>
     <div class="reihe">
-      <select id="dienst"><option value="pollinations">Pollinations (direkt auf Pages, ohne Schlüssel)</option><option value="canva">Canva (über die App)</option><option value="hf">Hugging Face (über die App)</option></select>
+      <select id="dienst"><option value="pollinations">Pollinations (direkt auf Pages, ohne Konto: 1 Bild je 45 s)</option><option value="canva">Canva (über die App)</option><option value="hf">Hugging Face (über die App)</option></select>
       <select id="vorlauf"><option value="0" selected>ohne Vorlauf (erster Teil, strengster Fall)</option><option value="115">1 Teil Vorlauf (≈ 300 Wörter, 115 s)</option><option value="230">2 Teile Vorlauf (wie Vorleser, 230 s)</option></select>
       <button id="lauf" disabled>Lauf starten</button>
     </div>
@@ -200,7 +200,10 @@ function pollinations(prompt, seed) {
   });
 }
 async function ueberApp(dienst, prompt) { const r = await auftrag({ art: 'bild', dienst, prompt }); const src = 'data:' + (r.mime || 'image/png') + ';base64,' + r.data; const dim = await new Promise(ja => { const i = new Image(); i.onload = () => ja([i.naturalWidth, i.naturalHeight]); i.onerror = () => ja([0, 0]); i.src = src; }); return { src, w: dim[0], h: dim[1] }; }
-const holen = (dienst, prompt, i) => dienst === 'pollinations' ? pollinations(prompt, 1000 + i) : ueberApp(dienst, prompt);
+/* Pollinations ohne Konto: höchstens 1 Bild je 45 s, sonst kommt ein Platzhalter („Free limit reached“) */
+let polFrei = 0;
+async function polGedrosselt(prompt, seed) { const w = polFrei - Date.now(); if (w > 0) await new Promise(r => setTimeout(r, w)); polFrei = Date.now() + 46000; return pollinations(prompt, seed); }
+const holen = (dienst, prompt, i) => dienst === 'pollinations' ? polGedrosselt(prompt, 1000 + i + Math.floor(Math.random() * 1e6)) : ueberApp(dienst, prompt);
 
 /* Lauf mit fünf Szenen: höchstens drei Bestellungen gleichzeitig */
 $('lauf').onclick = async () => {
@@ -209,7 +212,7 @@ $('lauf').onclick = async () => {
   const dauer = saetze.map(s => s.t.split(/\s+/).length / 2.6);
   const start = []; let acc = 0; dauer.forEach(d => { start.push(vorlauf + acc); acc += d; });
   const zeilen = saetze.map((s, i) => { const tr = document.createElement('tr'); tr.innerHTML = '<td></td><td></td><td class="z">–</td><td class="z">…</td><td class="z"></td><td class="z"></td><td></td>'; tr.cells[0].textContent = i + 1; tr.cells[1].textContent = dienst; tr.cells[4].textContent = start[i].toFixed(1) + ' s'; tab.append(tr); return tr; });
-  const t0 = performance.now(), bilder = []; let frei = 3; const schlange = [];
+  const t0 = performance.now(), bilder = []; let frei = dienst === 'pollinations' ? 1 : 3; const schlange = [];
   const sem = fn => new Promise((ja, nein) => { const los = () => { frei--; fn().then(ja, nein).finally(() => { frei++; const w = schlange.shift(); if (w) w(); }); }; if (frei > 0) los(); else schlange.push(los); });
   log('Lauf gestartet: ' + dienst + ', Vorlauf ' + vorlauf + ' s');
   const fertig = saetze.map((s, i) => sem(async () => {
